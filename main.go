@@ -41,7 +41,7 @@ func main() {
 		os.Exit(errExitCode)
 	}
 
-	info, err := parseLog()
+	info, err := parseConfig()
 	if nil != err {
 		fmt.Println("parse log with error: ", err)
 		os.Exit(errExitCode)
@@ -84,7 +84,7 @@ func help() {
 	fmt.Println("Usage: go-mongo-crud -c config_file_path")
 }
 
-func parseLog() (config, error) {
+func parseConfig() (config, error) {
 	viper.SetConfigType("yaml")
 	viper.SetConfigFile(confFile)
 	viper.AddConfigPath(".")
