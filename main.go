@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/spf13/viper"
+	"github.com/jamieabc/go-mongo-crud/internal/config"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -20,16 +20,6 @@ const (
 
 var confFile string
 
-type serverInfo struct {
-	ip       string
-	port     int
-	database string
-}
-
-type config struct {
-	server serverInfo
-}
-
 func init() {
 	flag.StringVar(&confFile, "c", "", "config file path")
 	flag.Parse()
@@ -41,15 +31,15 @@ func main() {
 		os.Exit(errExitCode)
 	}
 
-	info, err := parseConfig()
+	info, err := config.Parse(confFile)
 	if nil != err {
 		fmt.Println("parse log with error: ", err)
 		os.Exit(errExitCode)
 	}
 
-	fmt.Println("server: ", info.server)
+	fmt.Println("server: ", info.Server)
 
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://" + info.server.ip + ":" + strconv.Itoa(info.server.port)))
+	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://" + info.Server.IP + ":" + strconv.Itoa(info.Server.Port)))
 	if nil != err {
 		fmt.Println("new mongo client with error: ", err)
 		os.Exit(errExitCode)
@@ -62,7 +52,7 @@ func main() {
 		os.Exit(errExitCode)
 	}
 
-	collection := client.Database(info.server.database).Collection("places")
+	collection := client.Database(info.Server.Database).Collection("places")
 	cur, err := collection.Find(ctx, bson.D{})
 	if nil != err {
 		fmt.Println("find with error: ", err)
@@ -82,23 +72,4 @@ func main() {
 
 func help() {
 	fmt.Println("Usage: go-mongo-crud -c config_file_path")
-}
-
-func parseConfig() (config, error) {
-	viper.SetConfigType("yaml")
-	viper.SetConfigFile(confFile)
-	viper.AddConfigPath(".")
-
-	err := viper.ReadInConfig()
-	if nil != err {
-		return config{}, err
-	}
-
-	return config{
-		serverInfo{
-			ip:       viper.GetString("server.ip"),
-			port:     viper.GetInt("server.port"),
-			database: viper.GetString("server.database"),
-		},
-	}, nil
 }
