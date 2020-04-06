@@ -29,6 +29,25 @@ func (m mongoDatabase) Find(collection string) (Cursor, error) {
 	return c.Find(ctx, bson.D{})
 }
 
+//ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//defer cancel()
+//
+//_, err := c.Collection(CitizenReportCollection).InsertOne(ctx, *data)
+
+func (m *mongoDatabase) InsertOne(collection string, document interface{}) error {
+	c := m.client.Database(m.database).Collection(collection)
+	ctx, cancel := context.WithTimeout(context.Background(), mongoTimeout)
+	defer cancel()
+
+	result, err := c.InsertOne(ctx, document)
+	if nil != err {
+		return err
+	}
+
+	logrus.WithField("prefix", mongoLogPrefix).Infof("insert %v result: %v", document, result)
+	return nil
+}
+
 // NewMongo - new mongo database
 func NewMongo(info Info) (Database, error) {
 	opts := options.Client().ApplyURI(mongoConnectionString(info))

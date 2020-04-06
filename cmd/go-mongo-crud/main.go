@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bxcodec/faker/v3"
 	"github.com/sirupsen/logrus"
 
 	"github.com/jamieabc/go-mongo-crud/internal/config"
@@ -35,13 +36,13 @@ func init() {
 }
 
 type locationStruct struct {
-	TypeString  string    `bson:"type"`
-	Coordinates []float64 `bson:"coordinates"`
+	TypeString  string    `bson:"type" faker:"-"`
+	Coordinates []float64 `bson:"coordinates" faker:"-"`
 }
 
 type recordStruct struct {
-	Name     string         `bson:"name"`
-	Location locationStruct `bson:"location"`
+	Name     string         `bson:"name" faker:"word"`
+	Location locationStruct `bson:"location" faker:"-"`
 }
 
 func main() {
@@ -67,6 +68,18 @@ func main() {
 		logrus.WithField("prefix", "main").Panicf("create mongo with error: %s", err)
 	}
 
+	r := recordStruct{}
+	_ = faker.FakeData(&r)
+	r.Location = locationStruct{
+		TypeString:  "Point",
+		Coordinates: []float64{-1, -1},
+	}
+
+	err = m.InsertOne("places", &r)
+	if nil != err {
+		logrus.WithField("prefix", logPrefix).Panicf("insert record with error: %s", err)
+	}
+
 	cur, err := m.Find("places")
 	if nil != err {
 		logrus.WithField("prefix", "main").Panicf("find with error: %s", err)
@@ -74,7 +87,6 @@ func main() {
 	defer cur.Close(context.Background())
 
 	for cur.Next(context.Background()) {
-		logrus.WithField("prefix", logPrefix).Debug("finding database records")
 		var record recordStruct
 		err := cur.Decode(&record)
 		if nil != err {
