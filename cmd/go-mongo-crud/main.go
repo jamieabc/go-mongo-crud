@@ -8,6 +8,7 @@ import (
 
 	"github.com/bxcodec/faker/v3"
 	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/jamieabc/go-mongo-crud/internal/config"
 	"github.com/jamieabc/go-mongo-crud/internal/database"
@@ -68,6 +69,7 @@ func main() {
 		logrus.WithField("prefix", "main").Panicf("create mongo with error: %s", err)
 	}
 
+	// insert
 	r := recordStruct{}
 	_ = faker.FakeData(&r)
 	r.Location = locationStruct{
@@ -80,20 +82,33 @@ func main() {
 		logrus.WithField("prefix", logPrefix).Panicf("insert record with error: %s", err)
 	}
 
+	// search
 	cur, err := m.Find("places")
 	if nil != err {
 		logrus.WithField("prefix", "main").Panicf("find with error: %s", err)
 	}
 	defer cur.Close(context.Background())
 
+	var toDelete string
+
 	for cur.Next(context.Background()) {
 		var record recordStruct
 		err := cur.Decode(&record)
+		if toDelete == "" {
+			toDelete = record.Name
+		}
+
 		if nil != err {
 			logrus.WithField("prefix", logPrefix).Errorf("decode record with error: ", err)
 			continue
 		}
 		logrus.WithField("prefix", logPrefix).Debugf("record: %v", record)
+	}
+
+	// delete
+	err = m.DeleteOne("places", bson.M{"name": toDelete})
+	if nil != err {
+		logrus.WithField("prefix", logPrefix).Panicf("delete record %s with error: %s", toDelete, err)
 	}
 }
 
