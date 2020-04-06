@@ -57,6 +57,21 @@ func (m *mongoDatabase) DeleteOne(collection string, document interface{}) error
 	return nil
 }
 
+func (m *mongoDatabase) UpdateOne(collection string, filter, update interface{}) error {
+	c := m.client.Database(m.database).Collection(collection)
+	ctx, cancel := context.WithTimeout(context.Background(), mongoTimeout)
+	defer cancel()
+
+	result, err := c.UpdateOne(ctx, filter, update)
+	if nil != err {
+		return err
+	}
+
+	logrus.WithField("prefix", mongoLogPrefix).Infof("update %v to %v, result: %v", filter, update, result)
+	return nil
+
+}
+
 // NewMongo - new mongo database
 func NewMongo(info Info) (Database, error) {
 	opts := options.Client().ApplyURI(mongoConnectionString(info))

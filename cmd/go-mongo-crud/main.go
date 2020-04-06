@@ -105,11 +105,19 @@ func main() {
 		logrus.WithField("prefix", logPrefix).Debugf("record: %v", record)
 	}
 
+	// update
+	err = m.UpdateOne(
+		"places",
+		bson.M{"name": bson.M{"$eq": toDelete}},
+		bson.M{"$set": bson.M{"name": "toDelete"}},
+	)
+
 	// delete
-	err = m.DeleteOne("places", bson.M{"name": toDelete})
+	err = m.DeleteOne("places", bson.M{"name": "toDelete"})
 	if nil != err {
 		logrus.WithField("prefix", logPrefix).Panicf("delete record %s with error: %s", toDelete, err)
 	}
+
 }
 
 func help() {

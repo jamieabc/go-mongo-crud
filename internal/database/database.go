@@ -7,6 +7,7 @@ type Database interface {
 	Find(string) (Cursor, error)
 	InsertOne(string, interface{}) error
 	DeleteOne(string, interface{}) error
+	UpdateOne(string, interface{}, interface{}) error
 }
 
 // Cursor - operation for database record cursor
