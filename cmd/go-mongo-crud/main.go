@@ -4,18 +4,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/jamieabc/go-mongo-crud/internal/config"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"os"
-	"strconv"
-	"time"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/jamieabc/go-mongo-crud/internal/config"
+	"github.com/jamieabc/go-mongo-crud/internal/database"
 )
 
 const (
 	errExitCode = -1
-	dbTimeout   = 5 * time.Second
+	logPrefix   = "main"
 )
 
 var confFile string
@@ -23,6 +22,26 @@ var confFile string
 func init() {
 	flag.StringVar(&confFile, "c", "", "config file path")
 	flag.Parse()
+
+	// Log as JSON instead of the default ASCII formatter.
+	//logrus.SetFormatter(&logrus.JSONFormatter{})
+
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	logrus.SetOutput(os.Stdout)
+
+	// Only log. the warning severity or above.
+	logrus.SetLevel(logrus.DebugLevel)
+}
+
+type locationStruct struct {
+	TypeString  string    `bson:"type"`
+	Coordinates []float64 `bson:"coordinates"`
+}
+
+type recordStruct struct {
+	Name     string         `bson:"name"`
+	Location locationStruct `bson:"location"`
 }
 
 func main() {
@@ -37,36 +56,32 @@ func main() {
 		os.Exit(errExitCode)
 	}
 
-	fmt.Println("server: ", info.Server)
-
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://" + info.Server.IP + ":" + strconv.Itoa(info.Server.Port)))
+	m, err := database.NewMongo(database.Info{
+		IP:       info.Server.IP,
+		Port:     info.Server.Port,
+		User:     "",
+		Password: "",
+		Database: info.Server.Database,
+	})
 	if nil != err {
-		fmt.Println("new mongo client with error: ", err)
-		os.Exit(errExitCode)
+		logrus.WithField("prefix", "main").Panicf("create mongo with error: %s", err)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), dbTimeout)
-	err = client.Connect(ctx)
+	cur, err := m.Find("places")
 	if nil != err {
-		fmt.Println("connect mongo db with error: ", err)
-		os.Exit(errExitCode)
+		logrus.WithField("prefix", "main").Panicf("find with error: %s", err)
 	}
+	defer cur.Close(context.Background())
 
-	collection := client.Database(info.Server.Database).Collection("places")
-	cur, err := collection.Find(ctx, bson.D{})
-	if nil != err {
-		fmt.Println("find with error: ", err)
-		os.Exit(errExitCode)
-	}
-	defer cur.Close(ctx)
-	for cur.Next(ctx) {
-		var record bson.M
+	for cur.Next(context.Background()) {
+		logrus.WithField("prefix", logPrefix).Debug("finding database records")
+		var record recordStruct
 		err := cur.Decode(&record)
 		if nil != err {
-			fmt.Println("decode record with error: ", err)
+			logrus.WithField("prefix", logPrefix).Errorf("decode record with error: ", err)
 			continue
 		}
-		fmt.Println("record: ", record)
+		logrus.WithField("prefix", logPrefix).Debugf("record: %v", record)
 	}
 }
 
